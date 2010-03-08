@@ -7,6 +7,7 @@ public class RemoteInput implements Runnable
 	VlcRcConnection m_conn;
 	RcEventListener m_listener;
 	boolean m_abortRequested = false;
+	private Thread m_rcvThread;
 	
 	public RemoteInput( VlcRcConnection conn, RcEventListener listener )
 	{
@@ -22,7 +23,6 @@ public class RemoteInput implements Runnable
 	
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
 		while( !m_abortRequested )
 		{
 			String s;
@@ -49,6 +49,20 @@ public class RemoteInput implements Runnable
 
 	public void createRecThread()
 	{
-		new Thread( this ).start();
-	}	
+		m_rcvThread = new Thread( this );
+		m_rcvThread.start();
+	}
+	
+	public void shutdownRecThread()
+	{
+		m_abortRequested = true;
+
+		m_rcvThread.interrupt();
+		try {
+			m_rcvThread.join();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 }

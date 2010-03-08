@@ -5,6 +5,7 @@ import java.awt.event.ActionListener;
 import java.util.Vector;
 
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JPanel;
 
 @SuppressWarnings("serial")
@@ -32,18 +33,21 @@ public class ControlsPanel extends JPanel implements ActionListener
 		add( m_play );
 		add( m_pause );
 		
-		m_listeners = new Vector<ControlInterface>();
+		m_listeners = new Vector<ControlInterface>();		
 	}
+	
 	
 	public void addControlListener( ControlInterface itf )
 	{
 		m_listeners.add( itf );
 	}
 	
+	
 	public void deleteControlListener( ControlInterface itf )
 	{
 		m_listeners.remove( itf );
 	}
+	
 	
 	@Override
 	public void actionPerformed(ActionEvent ae)

@@ -12,4 +12,9 @@ public class Media
 		length = new Integer(0);
 		currPosPercent = 0;
 	}
+
+	@Override
+	public String toString() {
+		return title + " (" + currPosPercent + "%)";
+	}
 }

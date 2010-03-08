@@ -16,6 +16,9 @@ public class VlcRcConnection
 	public VlcRcConnection( String host, int port )
 	{
 		m_sockAddr = new InetSocketAddress( host, port);
+		 
+		// Java doc says that a new socket needs to be created after a close,
+		m_socket = new Socket();
 	}
 	
 	public void open() throws IOException
@@ -29,6 +32,25 @@ public class VlcRcConnection
 			m_is = m_socket.getInputStream();
 			m_os = m_socket.getOutputStream();
 		}
+	}
+	
+	public void close() throws IOException
+	{
+		if ( m_socket.isConnected() )
+		{
+			m_is.close();
+			m_os.close();
+		}
+			
+		m_socket.close();
+				
+		/* 
+		 * Java doc says that a new socket needs to be created after a close,
+		 * so we do that right here. Benefit is that it will have state
+		 * "not connected", which we somehow simply can't get by closeing
+		 * the existing one.
+		 */
+		m_socket = new Socket();
 	}
 	
 	public void writeLine( String line )
@@ -78,4 +100,11 @@ public class VlcRcConnection
 			}	
 		}
 	}
+	
+	@Override
+	public String toString()
+	{
+		return m_sockAddr.toString() + " - " + ( m_socket.isConnected() ? "connected" : "disconnected" ) ;
+	}
+	
 }

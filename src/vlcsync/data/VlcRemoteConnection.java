@@ -1,5 +1,7 @@
 package vlcsync.data;
 
+import java.io.IOException;
+
 
 public class VlcRemoteConnection implements RcEventListener
 {
@@ -22,6 +24,10 @@ public class VlcRemoteConnection implements RcEventListener
 		m_name = name;
 		m_conn = conn;
 		
+	}
+
+	private void initConn()
+	{
 		m_media = new Media();
 		m_mediaWaiter = new Media();
 
@@ -38,7 +44,7 @@ public class VlcRemoteConnection implements RcEventListener
 		m_pendingRequest = GET_LENGTH;
 		m_output.send( "get_length" );
 		System.err.println( "waiting for length..." );
-		waitFor( m_mediaWaiter.length );
+		waitFor( m_mediaWaiter.length );		
 	}
 	
 	public String getName()
@@ -46,6 +52,23 @@ public class VlcRemoteConnection implements RcEventListener
 		return m_name;
 	}
 
+	public void connect() throws IOException
+	{
+		m_conn.open();
+		
+		initConn();
+	}
+	
+	public void disconnect() throws IOException
+	{
+		m_media = null;
+		
+		m_output.send( "logout" );
+		m_input.shutdownRecThread();
+		
+		m_conn.close();
+	}
+	
 	private void waitFor( Object o )
 	{
 /*		
@@ -136,4 +159,17 @@ public class VlcRemoteConnection implements RcEventListener
 		m_output.sendPlay();
 	}
 
+	@Override
+	public String toString()
+	{
+		String ret = m_name + ": " + m_conn.toString();
+		
+		if ( m_media != null )
+		{
+			ret += ", playing: " + m_media.toString();
+		}
+		
+		return ret;
+	}
+	
 }
