@@ -5,13 +5,17 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketException;
 
-public class VlcRcConnection
+public class VlcRcConnection implements Runnable
 {
 	private Socket m_socket;
-	InetSocketAddress m_sockAddr;
-	InputStream m_is;
-	OutputStream m_os;
+	private InetSocketAddress m_sockAddr;
+	boolean m_abortRequested = false;	
+	private RcEventListener m_listener;	
+	private InputStream m_is;
+	private OutputStream m_os;
+	private Thread m_rcvThread;
 	
 	public VlcRcConnection( String host, int port )
 	{
@@ -31,6 +35,8 @@ public class VlcRcConnection
 //			m_is = new BufferedInputStream( m_socket.getInputStream() );
 			m_is = m_socket.getInputStream();
 			m_os = m_socket.getOutputStream();
+			
+			createRecThread();
 		}
 	}
 	
@@ -43,6 +49,8 @@ public class VlcRcConnection
 		}
 			
 		m_socket.close();
+		
+		shutdownRecThread();
 				
 		/* 
 		 * Java doc says that a new socket needs to be created after a close,
@@ -60,8 +68,17 @@ public class VlcRcConnection
 			m_os.write( line.getBytes() );
 			m_os.write( '\n' );
 			m_os.flush();
-		
-		} catch (IOException e) {
+		}
+		catch ( SocketException se )
+		{
+			System.err.println( "writeLine: got exception " + se );
+			if ( m_listener != null )
+			{
+				System.err.println( "rcvThread: notifying listener.." );
+				m_listener.connectionAborted();
+			}
+		}
+		catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
@@ -86,7 +103,8 @@ public class VlcRcConnection
 						
 			if ( c == -1 )
 			{
-				return null;
+				throw new SocketException( "EOF" );
+//				return null;
 			}
 			
 			if ( ( (char)c == '\n' ) || ( (char)c == '\r' ) )
@@ -100,6 +118,90 @@ public class VlcRcConnection
 			}	
 		}
 	}
+	
+	public void registerRcEventListener( RcEventListener ev )
+	{
+		m_listener = ev;
+	}
+	
+	public void createRecThread()
+	{
+		m_abortRequested = false;
+		m_rcvThread = new Thread( this );
+		m_rcvThread.start();
+	}
+	
+	public void shutdownRecThread()
+	{
+		System.err.println( "shutting down receive thread..." );
+		m_abortRequested = true;
+
+//		m_rcvThread.interrupt();
+		
+		if ( m_rcvThread.isAlive() )
+		{
+			boolean terminated = false;
+			
+			while ( !terminated )
+			{
+				try {
+					m_rcvThread.join( 5000 );
+					terminated = true;
+				} catch (InterruptedException e) {
+	//				e.printStackTrace();
+				}
+			}
+		}
+		
+		if ( m_rcvThread.isAlive() )
+		{
+			System.out.println( "receive thread didn't finish!" );
+		}
+		else
+		{
+			System.err.println( "receive thread shut down sucessfully." );
+		}
+	}
+	
+	
+	@Override
+	public void run() {
+		System.out.println( "rcvThread started." );
+		
+		while( !m_abortRequested )
+		{
+			String s;
+			try {
+				System.err.println( "Thread: readLine()..." );
+				s = readLine();
+				System.err.println( "Thread: got line: '" + s + "'" );
+				
+				if ( s != null && s.length() > 0 )
+				{
+					if ( m_listener != null )
+					{
+						m_listener.LineReturned(s);
+					}
+				}
+			}
+			catch ( SocketException se )
+			{
+				System.err.println( "rcvThread: got exception " + se );
+				if ( m_listener != null )
+				{
+					System.err.println( "rcvThread: notifying listener.." );
+					m_listener.connectionAborted();
+				}
+			}
+			catch (IOException e) {
+				e.printStackTrace();
+				s = null;
+			}
+		} // while m_abortRequested
+		
+		System.out.println( "rcvThread finished." );
+	}
+
 	
 	@Override
 	public String toString()

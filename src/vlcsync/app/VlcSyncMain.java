@@ -8,6 +8,7 @@ import java.util.Vector;
 
 import javax.swing.JButton;
 
+import vlcsync.data.VlcConnStateListener;
 import vlcsync.data.VlcRcConnection;
 import vlcsync.data.VlcRemoteConnection;
 import vlcsync.gui.ConnectionPanel;
@@ -16,7 +17,7 @@ import vlcsync.gui.ControlsPanel;
 import vlcsync.gui.Tools;
 
 @SuppressWarnings("serial")
-public class VlcSyncMain extends javax.swing.JFrame implements ActionListener, ControlInterface
+public class VlcSyncMain extends javax.swing.JFrame implements ActionListener, ControlInterface, VlcConnStateListener
 {
 	private Vector<VlcRemoteConnection> m_conns;
 	
@@ -105,44 +106,42 @@ public class VlcSyncMain extends javax.swing.JFrame implements ActionListener, C
 	
 	private void connectAll()
 	{
+		setMouseWait();
+		
 		for ( int i = 0; i < m_conns.size(); i++ )
 		{
 			VlcRemoteConnection c = m_conns.elementAt( i );
 			
-			try {
-				c.connect();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			c.connect();
 		}
 		
-		setState( CONNECTED );
 	}
 	
 	
 	private void disconnectAll()
 	{
+		setMouseWait();
+		
 		for ( int i = 0; i < m_conns.size(); i++ )
 		{
 			VlcRemoteConnection c = m_conns.elementAt( i );
 			
-			try {
-				c.disconnect();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			c.disconnect( false );
 		}
-		
-		m_connPanel.fire();
-		setState( DISCONNECTED );
 	}
 	
 	
 	private void addDefaultConns()
 	{
-		VlcRcConnection conn = new VlcRcConnection( "192.168.178.32", 4213 );
+		VlcRcConnection rcConn1 = new VlcRcConnection( "192.168.178.32", 4213 );
 		
-		m_conns.add( new VlcRemoteConnection( "Test", conn ) );
+		VlcRemoteConnection conn1 = new VlcRemoteConnection( "Test", rcConn1 );
+		conn1.registerVlcConnStateListener( this );
+		
+		m_conns.add( conn1 );
+		
+		
+		
 		m_connPanel.fire();
 	}
 	
@@ -190,15 +189,57 @@ public class VlcSyncMain extends javax.swing.JFrame implements ActionListener, C
 				connectAll();
 				
 				// TODO: only do this when all connections are established
-				setAppState( CONNECTED );
+//				setAppState( CONNECTED );
 			}
 			else if ( getAppState() == CONNECTED )
 			{				
 				disconnectAll();
 				
 				// TODO: only do this when all connections are established
-				setAppState( DISCONNECTED );
+//				setAppState( DISCONNECTED );
 			}
 		}
+	}
+
+
+	@Override
+	public void connectionClosed(VlcRemoteConnection c)
+	{		
+//		m_connPanel.fire();
+		if ( getAppState() == DISCONNECTED )
+		{
+			// seems like a connect attempt failed
+			System.err.println( "error connecting to " + c );
+		}
+		else
+		{
+			setAppState( DISCONNECTED );
+		}
+		
+		setMouseNormal();		
+	}
+
+
+	@Override
+		public void connectionOpened(VlcRemoteConnection c)
+		{
+	//		m_connPanel.fire();
+			System.out.println( "connection to " + c.getName() + " established." );
+			
+			setAppState( CONNECTED );
+			
+			setMouseNormal();		
+		}
+
+
+	private void setMouseWait() {
+		// TODO Auto-generated method stub
+		
+	}
+
+
+	private void setMouseNormal() {
+		// TODO Auto-generated method stub
+		
 	}
 }

@@ -7,8 +7,7 @@ public class VlcRemoteConnection implements RcEventListener
 {
 	private String m_name;
 	private VlcRcConnection m_conn;
-	private RemoteInput m_input;
-	private RemoteOutput m_output;
+	private VlcConnStateListener m_listener;
 	
 	private Media m_media;
 	private Media m_mediaWaiter;	// objects simply used as mutexes
@@ -24,27 +23,38 @@ public class VlcRemoteConnection implements RcEventListener
 		m_name = name;
 		m_conn = conn;
 		
+		m_conn.registerRcEventListener( this );
+	}
+	
+	public void registerVlcConnStateListener( VlcConnStateListener l )
+	{
+		m_listener = l;
 	}
 
-	private void initConn()
+	private void initConn() throws VlcRcException
 	{
 		m_media = new Media();
 		m_mediaWaiter = new Media();
-
-		m_input = new RemoteInput(m_conn, this);
-		m_output = new RemoteOutput(m_conn);
-		
-		m_input.createRecThread();
 		
 		m_pendingRequest = GET_TITLE;
-		m_output.send( "get_title" );
-		System.err.println( "waiting for title..." );
+		m_conn.writeLine( "get_title" );
+		System.out.println( "waiting for title..." );
 		waitFor( m_mediaWaiter.title );
+		if ( m_media.title == null || m_media.title.length() == 0 )
+		{
+			System.err.println( "timeout waiting for title." );
+			throw new VlcRcException( "timeout waiting for title." );
+		}
 		
 		m_pendingRequest = GET_LENGTH;
-		m_output.send( "get_length" );
-		System.err.println( "waiting for length..." );
+		m_conn.writeLine( "get_length" );
+		System.out.println( "waiting for length..." );
 		waitFor( m_mediaWaiter.length );		
+		if ( m_media.length == null || m_media.length == 0 )
+		{
+			System.err.println( "timeout waiting for length." );			
+			throw new VlcRcException( "timeout waiting for length." );
+		}
 	}
 	
 	public String getName()
@@ -52,21 +62,58 @@ public class VlcRemoteConnection implements RcEventListener
 		return m_name;
 	}
 
-	public void connect() throws IOException
+	public void connect()
 	{
-		m_conn.open();
+		try
+		{
+			m_conn.open();
 		
-		initConn();
+			initConn();
+
+			notifyListenersOpened( this );
+		}
+		catch( VlcRcException ve )
+		{
+			disconnect( true );
+		}
+		catch (IOException e) 
+		{
+			notifyListenersClosed( this );
+		}
 	}
 	
-	public void disconnect() throws IOException
+	private boolean m_disconInProgress = false;
+	
+	public void disconnect( boolean force )
 	{
+		m_disconInProgress = true;
+		
 		m_media = null;
 		
-		m_output.send( "logout" );
-		m_input.shutdownRecThread();
+		// only send logout when gracefully ending connection
+		if ( !force )
+		{
+			m_conn.writeLine( "logout" );
+		}
+		try {
+			m_conn.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		
-		m_conn.close();
+		notifyListenersClosed( this );
+	}
+	
+	private void notifyListenersOpened( VlcRemoteConnection conn )
+	{
+		if ( m_listener != null )
+			m_listener.connectionOpened( conn );
+	}
+	
+	private void notifyListenersClosed( VlcRemoteConnection conn )
+	{
+		if ( m_listener != null )
+			m_listener.connectionClosed( conn );
 	}
 	
 	private void waitFor( Object o )
@@ -83,7 +130,7 @@ public class VlcRemoteConnection implements RcEventListener
 */				
 		synchronized (o) {
 			try {
-				o.wait();
+				o.wait( 1000 );
 			} catch (InterruptedException e1) {
 				e1.printStackTrace();
 			}
@@ -144,21 +191,33 @@ public class VlcRemoteConnection implements RcEventListener
 		}
 	}
 	
+	@Override
+	public void connectionAborted()
+	{
+		// only call disconnect if we aren't the cause of the DC
+		// (e.g. by an explicit call to disconnect())
+		if ( !m_disconInProgress )
+			disconnect( true );
+	}
+
+	// ==== this should be moved to an interface ====
 	public void stop()
 	{
-		m_output.sendStop();
-	}
-	
-	public void pause()
-	{
-		m_output.sendPause();
+		m_conn.writeLine( "stop" );
 	}
 	
 	public void play()
 	{
-		m_output.sendPlay();
+		m_conn.writeLine( "play" );
 	}
-
+	
+	public void pause()
+	{
+		m_conn.writeLine( "pause" );
+	}
+	// ========
+	
+	
 	@Override
 	public String toString()
 	{
