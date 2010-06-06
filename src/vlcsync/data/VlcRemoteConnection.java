@@ -130,7 +130,7 @@ public class VlcRemoteConnection implements RcEventListener
 */				
 		synchronized (o) {
 			try {
-				o.wait( 1000 );
+				o.wait( 4000 );
 			} catch (InterruptedException e1) {
 				e1.printStackTrace();
 			}

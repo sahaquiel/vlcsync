@@ -21,8 +21,8 @@ public class ConnectionPanel extends JPanel
 		
 		m_model = new VlcRemoteConnListModel( conns );
 		m_list = new JList( m_model );
-		m_list.setPreferredSize( new Dimension( 500, 100 ) );
-		JScrollPane pane = new JScrollPane( m_list ); 
+		m_list.setPreferredSize( new Dimension( 700, 100 ) );
+		JScrollPane pane = new JScrollPane( m_list );
 		
 //		add( m_list );
 		add( pane );

@@ -133,14 +133,17 @@ public class VlcSyncMain extends javax.swing.JFrame implements ActionListener, C
 	
 	private void addDefaultConns()
 	{
-		VlcRcConnection rcConn1 = new VlcRcConnection( "192.168.178.32", 4213 );
-		
-		VlcRemoteConnection conn1 = new VlcRemoteConnection( "Test", rcConn1 );
+
+		VlcRcConnection rcConn1 = new VlcRcConnection( "192.168.178.32", 4213 );		
+		VlcRemoteConnection conn1 = new VlcRemoteConnection( "Frank laptop WLAN", rcConn1 );
 		conn1.registerVlcConnStateListener( this );
 		
+		VlcRcConnection rcConn2 = new VlcRcConnection( "192.168.190.42", 4213 );		
+		VlcRemoteConnection conn2 = new VlcRemoteConnection( "Karen OpenVPN", rcConn2 );
+		conn2.registerVlcConnStateListener( this );
+		
 		m_conns.add( conn1 );
-		
-		
+		m_conns.add( conn2 );
 		
 		m_connPanel.fire();
 	}
